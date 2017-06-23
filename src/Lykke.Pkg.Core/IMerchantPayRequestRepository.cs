@@ -7,7 +7,7 @@ using Lykke.Core;
 namespace Lykke.Core
 {
     [Flags]
-    public enum MerchantPayRequestNotification : int
+    public enum MerchantPayRequestNotification
     {
         Nothing = 0,
         InProgress = 1,
@@ -26,14 +26,15 @@ namespace Lykke.Core
     public enum MerchantPayRequestType
     {
         Purchase,
-        Transfer
+        Transfer,
+        ExchangeTransfer
     }
 
-    public interface IPayFee
+    public class PayFee
     {
-        float Percent { get; set; }
-        int Pips { get; set; }
-        float FixedFee { get; set; }
+        public float Percent { get; set; }
+        public int Pips { get; set; }
+        public float FixedFee { get; set; }
       
     }
     public interface IMerchantPayRequest
@@ -41,7 +42,7 @@ namespace Lykke.Core
         string MerchantId { get; set; }
         string RequestId { get; set; }
         string TransactionId { get; set; }
-        IPayFee Markup { get; set; }
+        PayFee Markup { get; set; }
         MerchantPayRequestStatus MerchantPayRequestStatus { get; set; }
         MerchantPayRequestType MerchantPayRequestType { get; set; }
         MerchantPayRequestNotification MerchantPayRequestNotification { get; set; }

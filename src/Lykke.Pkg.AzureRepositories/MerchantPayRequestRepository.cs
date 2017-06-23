@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Lykke.Core;
 using Lykke.Core.Azure;
@@ -8,13 +9,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Lykke.AzureRepositories
 {
-    public class PayFee : IPayFee
-    {
-        public float Percent { get; set; }
-        public int Pips { get; set; }
-        public float FixedFee { get; set; }
-    }
-
+   
     public class MerchantPayRequest : TableEntity, IMerchantPayRequest
     {
         public string MerchantId
@@ -28,7 +23,7 @@ namespace Lykke.AzureRepositories
             set => RowKey = value;
         }
         public string TransactionId { get; set; }
-        public IPayFee Markup { get; set; }
+        public Core.PayFee Markup { get; set; }
         public MerchantPayRequestStatus MerchantPayRequestStatus { get; set; }
         public MerchantPayRequestType MerchantPayRequestType { get; set; }
         public MerchantPayRequestNotification MerchantPayRequestNotification { get; set; }
@@ -41,6 +36,10 @@ namespace Lykke.AzureRepositories
         public string ErrorUrl { get; set; }
         public string ProgressUrl { get; set; }
         public string OrderId { get; set; }
+
+        public string Markup_Percent { get; set; }
+        public string Markup_Pips { get; set; }
+        public string Markup_FixedFee { get; set; }
 
         public MerchantPayRequest()
         {
@@ -55,6 +54,9 @@ namespace Lykke.AzureRepositories
                 RequestId = request.RequestId,
                 TransactionId = request.TransactionId,
                 Markup = request.Markup,
+                Markup_Percent = request.Markup.Percent.ToString(CultureInfo.InvariantCulture),
+                Markup_Pips = request.Markup.Pips.ToString(),
+                Markup_FixedFee = request.Markup.FixedFee.ToString(CultureInfo.InvariantCulture),
                 MerchantPayRequestStatus = request.MerchantPayRequestStatus,
                 MerchantPayRequestType = request.MerchantPayRequestType,
                 MerchantPayRequestNotification = request.MerchantPayRequestNotification,
@@ -69,6 +71,24 @@ namespace Lykke.AzureRepositories
                 OrderId = request.OrderId,
                 ETag = "*"
             };
+        }
+
+        internal static MerchantPayRequest CreateFull(IMerchantPayRequest request)
+        {
+            var result = Create(request);
+            float percent, fixedFee;
+            int pips;
+            float.TryParse(result.Markup_Percent, out percent);
+            float.TryParse(result.Markup_FixedFee, out fixedFee);
+            int.TryParse(result.Markup_Pips, out pips);
+            result.Markup = new PayFee
+            {
+                Percent = percent,
+                Pips = pips,
+                FixedFee = fixedFee
+            };
+
+            return result;
         }
     }
 
@@ -89,12 +109,16 @@ namespace Lykke.AzureRepositories
 
         public async Task<IEnumerable<IMerchantPayRequest>> GetAllAsync()
         {
-            return await _tableStorage.GetDataAsync();
+            return (from t in (await _tableStorage.GetDataAsync())
+                   select MerchantPayRequest.CreateFull(t)
+                   ).ToList();
         }
 
         public async Task<IEnumerable<IMerchantPayRequest>> GetAllByMerchantIdAsync(string merchantId)
         {
-            return await _tableStorage.GetDataAsync(merchantId);
+            return (from t in (await _tableStorage.GetDataAsync(merchantId))
+                select MerchantPayRequest.CreateFull(t)
+            ).ToList();
         }
     }
 }
